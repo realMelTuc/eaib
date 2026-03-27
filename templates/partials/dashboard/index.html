@@ -1,0 +1,214 @@
+<div class="page-header">
+    <span class="page-title">Dashboard</span>
+    <span class="page-sub">Alliance Intel Overview</span>
+    <a class="btn-sm" onclick="loadPanel('/intel/submit/')">+ Submit Intel</a>
+</div>
+
+<!-- ── KPI row ── -->
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-label">ACTIVE THREATS</div>
+        <div class="kpi-value teal">{{ active_count }}</div>
+    </div>
+    <div class="kpi-card kpi-alert">
+        <div class="kpi-label">CRITICAL</div>
+        <div class="kpi-value red">{{ critical_count }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">RESOLVED TODAY</div>
+        <div class="kpi-value amber">{{ resolved_today }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">TOTAL REPORTS</div>
+        <div class="kpi-value">{{ total_reports }}</div>
+    </div>
+</div>
+
+<!-- ── Main grid ── -->
+<div class="two-col">
+
+    <!-- Recent intel feed -->
+    <div class="panel">
+        <div class="panel-header">
+            <span>ACTIVE INTEL FEED</span>
+            <a class="btn-sm" onclick="loadPanel('/intel/')">View All</a>
+        </div>
+        {% if recent_intel %}
+        <table class="data-grid">
+            <thead>
+                <tr>
+                    <th>THREAT</th>
+                    <th>TITLE</th>
+                    <th>SYSTEM</th>
+                    <th>CAT</th>
+                    <th>REPORTER</th>
+                    <th>TIME</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recent_intel %}
+                <tr>
+                    <td>
+                        <span class="threat-badge threat-{{ r.threat_level }}">
+                            {{ r.threat_level | upper }}
+                        </span>
+                    </td>
+                    <td>
+                        <a class="link-teal" onclick="loadPanel('/intel/{{ r.id }}/')">
+                            {{ r.title | truncate(40, True) }}
+                        </a>
+                    </td>
+                    <td class="mono dim">{{ r.system_name or '—' }}</td>
+                    <td class="mono dim">{{ r.category }}</td>
+                    <td class="dim">{{ r.reporter_name | truncate(16, True) }}</td>
+                    <td class="mono dim small">{{ r.created_at.strftime('%m/%d %H:%M') if r.created_at else '—' }}</td>
+                    <td>
+                        <a class="icon-link" onclick="loadPanel('/intel/{{ r.id }}/')">&#x2192;</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No active intel. <a class="link-teal" onclick="loadPanel('/intel/submit/')">Submit your first report.</a></p>
+        {% endif %}
+    </div>
+
+    <!-- Right column: threat dist + hot systems -->
+    <div class="panel-stack">
+
+        <!-- Threat distribution -->
+        <div class="panel">
+            <div class="panel-header"><span>THREAT DISTRIBUTION (ACTIVE)</span></div>
+            {% if threat_dist %}
+            <table class="data-grid">
+                <thead>
+                    <tr><th>LEVEL</th><th>COUNT</th><th>BAR</th></tr>
+                </thead>
+                <tbody>
+                    {% set max_cnt = threat_dist | map(attribute='cnt') | max %}
+                    {% for t in threat_dist %}
+                    <tr>
+                        <td>
+                            <span class="threat-badge threat-{{ t.threat_level }}">{{ t.threat_level | upper }}</span>
+                        </td>
+                        <td class="mono right">{{ t.cnt }}</td>
+                        <td>
+                            <div class="mini-bar-wrap">
+                                <div class="mini-bar threat-bar-{{ t.threat_level }}"
+                                     style="width:{{ (t.cnt / max_cnt * 100) | round | int }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No active threats.</p>
+            {% endif %}
+        </div>
+
+        <!-- Category breakdown -->
+        <div class="panel mt-12">
+            <div class="panel-header"><span>CATEGORY BREAKDOWN (ACTIVE)</span></div>
+            {% if category_dist %}
+            <table class="data-grid">
+                <thead>
+                    <tr><th>CATEGORY</th><th>COUNT</th></tr>
+                </thead>
+                <tbody>
+                    {% for c in category_dist %}
+                    <tr>
+                        <td>
+                            <a class="link-teal" onclick="loadPanel('/intel/?category={{ c.category }}&status=active')">
+                                {{ c.category | upper }}
+                            </a>
+                        </td>
+                        <td class="mono right">{{ c.cnt }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No data.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Hot systems ── -->
+<div class="panel mt-16">
+    <div class="panel-header"><span>HOT SYSTEMS (ACTIVE THREATS)</span></div>
+    {% if hot_systems %}
+    <table class="data-grid">
+        <thead>
+            <tr>
+                <th>SYSTEM</th>
+                <th>REGION</th>
+                <th>REPORTS</th>
+                <th>TOP THREAT</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in hot_systems %}
+            <tr>
+                <td class="mono">
+                    <a class="link-teal" onclick="loadPanel('/intel/?system={{ s.system_name }}&status=active')">
+                        {{ s.system_name }}
+                    </a>
+                </td>
+                <td class="dim">{{ s.region_name or '—' }}</td>
+                <td class="mono right">{{ s.report_count }}</td>
+                <td>
+                    <span class="threat-badge threat-{{ s.top_threat }}">{{ s.top_threat | upper }}</span>
+                </td>
+                <td>
+                    <a class="icon-link" onclick="loadPanel('/intel/?system={{ s.system_name }}&status=active')">&#x2192;</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No active threats by system.</p>
+    {% endif %}
+</div>
+
+<!-- ── Regional breakdown ── -->
+<div class="panel mt-16">
+    <div class="panel-header"><span>REGIONAL BREAKDOWN (ACTIVE)</span></div>
+    {% if region_breakdown %}
+    <table class="data-grid">
+        <thead>
+            <tr>
+                <th>REGION</th>
+                <th>TOTAL</th>
+                <th>CRITICAL</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in region_breakdown %}
+            <tr>
+                <td>
+                    <a class="link-teal" onclick="loadPanel('/intel/?region={{ reg.region_name }}&status=active')">
+                        {{ reg.region_name }}
+                    </a>
+                </td>
+                <td class="mono right">{{ reg.cnt }}</td>
+                <td class="mono right {% if reg.critical_cnt > 0 %}red{% else %}dim{% endif %}">
+                    {{ reg.critical_cnt }}
+                </td>
+                <td>
+                    <a class="icon-link" onclick="loadPanel('/intel/?region={{ reg.region_name }}&status=active')">&#x2192;</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No region data available.</p>
+    {% endif %}
+</div>
