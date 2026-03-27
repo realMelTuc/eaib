@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAIB — EVE Alliance Intel Board</title>
+    <link rel="stylesheet" href="/static/css/eaib.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="shell">
+    <!-- ── Sidebar ── -->
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">
+            <span>EAIB</span>
+            <button class="sidebar-toggle" id="sidebar-toggle" title="Collapse">&#x2630;</button>
+        </div>
+        <div class="nav-datetime" id="nav-datetime"></div>
+
+        <div class="nav-section">OVERVIEW</div>
+        <a class="nav-link" data-url="/dashboard/">Dashboard</a>
+
+        <div class="nav-section">INTEL</div>
+        <a class="nav-link" data-url="/intel/">Intel Feed</a>
+        <a class="nav-link" data-url="/intel/submit/">Submit Intel</a>
+
+        <div class="nav-section">MANAGE</div>
+        <a class="nav-link" data-url="/tags/">Tags</a>
+
+        <div class="sidebar-footer">
+            <span class="footer-tag">EVE Online</span>
+            <span class="footer-tag">Alliance</span>
+            <span class="footer-tag">Intel</span>
+        </div>
+    </nav>
+
+    <!-- ── Main panel ── -->
+    <div class="main-wrap" id="main-wrap">
+        <header class="topbar">
+            <button class="topbar-toggle" id="topbar-toggle" title="Toggle sidebar">&#x2630;</button>
+            <div class="topbar-title" id="topbar-title">EAIB</div>
+            <div class="topbar-right">
+                <input class="search-input" id="search-input" type="text" placeholder="Search intel…" autocomplete="off">
+                <div class="search-results" id="search-results" hidden></div>
+            </div>
+        </header>
+        <main class="page-body" id="main-panel">
+            <p class="loading-hint">Loading…</p>
+        </main>
+    </div>
+</div>
+
+<!-- Global toast -->
+<div id="eaib-toast" hidden></div>
+
+<script>
+// ─── Panel loader ──────────────────────────────────────────────────────────────────────
+function loadPanel(url) {
+    history.pushState({url}, '', url);
+    sessionStorage.setItem('lastPanel', url);
+    document.getElementById('topbar-title').textContent = urlToTitle(url);
+    setActiveNav(url);
+
+    fetch(url)
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(html => {
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            var scripts = [];
+            tmp.querySelectorAll('script').forEach(function(s) {
+                scripts.push({ src: s.src, content: s.textContent });
+                s.remove();
+            });
+            document.getElementById('main-panel').innerHTML = tmp.innerHTML;
+            scripts.forEach(function(si) {
+                try {
+                    var ns = document.createElement('script');
+                    if (si.src) ns.src = si.src; else ns.textContent = si.content;
+                    document.body.appendChild(ns);
+                } catch(e) { console.error('Script error:', e); }
+            });
+        })
+        .catch(function(err) {
+            document.getElementById('main-panel').innerHTML =
+                '<p style="color:#ef4444;padding:20px">Error: ' + err.message + '</p>';
+        });
+}
+
+function urlToTitle(url) {
+    var map = {
+        '/dashboard/':    'Dashboard',
+        '/intel/':        'Intel Feed',
+        '/intel/submit/': 'Submit Intel',
+        '/tags/':         'Tags',
+    };
+    if (map[url]) return map[url];
+    if (url.match(/^\/intel\/\d+\//)) return 'Intel Detail';
+    return 'EAIB';
+}
+
+function setActiveNav(url) {
+    document.querySelectorAll('.nav-link').forEach(function(a) {
+        a.classList.toggle('active', a.dataset.url === url);
+    });
+}
+
+// Nav click handler
+document.querySelectorAll('[data-url]').forEach(function(el) {
+    el.addEventListener('click', function(e) { e.preventDefault(); loadPanel(el.dataset.url); });
+});
+
+// Browser back/forward
+window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.url) loadPanel(e.state.url);
+});
+
+// ─── Sidebar toggle ─────────────────────────────────────────────────────────────────────────────────
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('main-wrap').classList.toggle('full-width');
+}
+document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+document.getElementById('topbar-toggle').addEventListener('click', toggleSidebar);
+
+// ─── Nav datetime ─────────────────────────────────────────────────────────────────────────────────────
+function updateDatetime() {
+    var el = document.getElementById('nav-datetime');
+    if (!el) return;
+    var now = new Date();
+    var opts = { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric',
+                 hour: 'numeric', minute: '2-digit', hour12: true };
+    el.textContent = now.toLocaleString('en-US', opts) + ' UTC';
+}
+updateDatetime();
+setInterval(updateDatetime, 60000);
+
+// ─── Intel search ─────────────────────────────────────────────────────────────────────────────────────
+var _searchTimer = null;
+document.getElementById('search-input').addEventListener('input', function() {
+    clearTimeout(_searchTimer);
+    var q = this.value.trim();
+    var resultsEl = document.getElementById('search-results');
+    if (!q) { resultsEl.hidden = true; return; }
+    _searchTimer = setTimeout(function() {
+        fetch('/api/search/?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(items) {
+                if (!items.length) { resultsEl.hidden = true; return; }
+                resultsEl.innerHTML = items.map(function(i) {
+                    return '<div class="sr-item" onclick="loadPanel(\'/intel/' + i.id + '/\')">'+
+                        '<span class="sr-name">' + (i.title || '') + '</span>' +
+                        '<span class="sr-meta">' + (i.system_name || '—') + ' &bull; ' +
+                        '<span class="threat-' + i.threat_level + '">' + i.threat_level + '</span></span>' +
+                        '</div>';
+                }).join('');
+                resultsEl.hidden = false;
+            });
+    }, 280);
+});
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.topbar-right')) {
+        document.getElementById('search-results').hidden = true;
+        document.getElementById('search-input').value = '';
+    }
+});
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────────────────────────────
+window.eaibToast = function(msg, type) {
+    var el = document.getElementById('eaib-toast');
+    var colors = {
+        success: ['rgba(34,197,94,0.95)',  '#0d1117'],
+        error:   ['rgba(239,68,68,0.95)',  '#fff'],
+        info:    ['rgba(0,212,170,0.9)',   '#0d1117'],
+        warn:    ['rgba(240,160,32,0.95)', '#0d1117'],
+    };
+    var c = colors[type] || colors.info;
+    el.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;padding:12px 20px;' +
+        'border-radius:4px;font-size:12px;font-family:Geist Mono,monospace;max-width:400px;' +
+        'background:' + c[0] + ';color:' + c[1] + ';transition:opacity .3s';
+    el.textContent = msg;
+    el.hidden = false;
+    el.style.opacity = '1';
+    clearTimeout(el._t);
+    el._t = setTimeout(function() {
+        el.style.opacity = '0';
+        setTimeout(function() { el.hidden = true; }, 300);
+    }, 3200);
+};
+
+// ─── Initial load ──────────────────────────────────────────────────────────────────────────────────────
+(function() {
+    var path = window.location.pathname;
+    var search = window.location.search;
+    var url;
+    if (path && path !== '/' && path !== '/index.html') {
+        url = path + search;
+    } else {
+        url = sessionStorage.getItem('lastPanel') || '/dashboard/';
+    }
+    loadPanel(url);
+})();
+</script>
+</body>
+</html>
