@@ -1,0 +1,177 @@
+<div class="page-header">
+    <span class="page-title">Submit Intel</span>
+    <span class="page-sub">Report a new threat or observation</span>
+    <a class="btn-sm btn-ghost" onclick="loadPanel('/intel/')">&#x2190; Feed</a>
+</div>
+
+<div class="form-container">
+    <div class="panel">
+        <div class="panel-header"><span>INTEL REPORT</span></div>
+
+        <form id="submit-form" onsubmit="return submitIntel()">
+
+            <div class="form-section-title">REPORT DETAILS</div>
+
+            <div class="form-row">
+                <label class="form-label">TITLE <span class="required">*</span></label>
+                <input class="form-input" type="text" id="f-title" placeholder="Short threat summary…" required>
+            </div>
+
+            <div class="form-grid-2 mt-8">
+                <div class="form-row">
+                    <label class="form-label">THREAT LEVEL <span class="required">*</span></label>
+                    <select class="form-select" id="f-threat">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">CATEGORY <span class="required">*</span></label>
+                    <select class="form-select" id="f-category">
+                        <option value="fleet">Fleet</option>
+                        <option value="pos">POS</option>
+                        <option value="structure">Structure</option>
+                        <option value="gank">Gank</option>
+                        <option value="camp">Camp</option>
+                        <option value="cyno">Cyno</option>
+                        <option value="spy">Spy</option>
+                        <option value="war">War</option>
+                        <option value="other" selected>Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grid-2 mt-8">
+                <div class="form-row">
+                    <label class="form-label">SYSTEM</label>
+                    <input class="form-input" type="text" id="f-system" placeholder="e.g. Jita">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">REGION</label>
+                    <input class="form-input" type="text" id="f-region" placeholder="e.g. The Forge">
+                </div>
+            </div>
+
+            <div class="form-section-title mt-16">CONTACT / ENTITY</div>
+
+            <div class="form-grid-2 mt-8">
+                <div class="form-row">
+                    <label class="form-label">REPORTER NAME <span class="required">*</span></label>
+                    <input class="form-input" type="text" id="f-reporter" placeholder="Your character name…" required>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">TARGET CHARACTER</label>
+                    <input class="form-input" type="text" id="f-character" placeholder="Hostile character name…">
+                </div>
+            </div>
+
+            <div class="form-grid-2 mt-8">
+                <div class="form-row">
+                    <label class="form-label">CORPORATION</label>
+                    <input class="form-input" type="text" id="f-corp" placeholder="Hostile corporation…">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">ALLIANCE</label>
+                    <input class="form-input" type="text" id="f-alliance" placeholder="Hostile alliance…">
+                </div>
+            </div>
+
+            <div class="form-section-title mt-16">ENGAGEMENT DETAILS</div>
+
+            <div class="form-grid-2 mt-8">
+                <div class="form-row">
+                    <label class="form-label">SHIP TYPE</label>
+                    <input class="form-input" type="text" id="f-ship" placeholder="e.g. Dreadnought, Sabre…">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">PILOT COUNT</label>
+                    <input class="form-input" type="number" id="f-pilots" min="1" placeholder="Number of hostiles…">
+                </div>
+            </div>
+
+            <div class="form-row mt-8">
+                <label class="form-label">DESCRIPTION</label>
+                <textarea class="form-textarea" id="f-description" rows="4"
+                          placeholder="Describe the threat in detail — location, behavior, ships, objectives…"></textarea>
+            </div>
+
+            <div class="form-row mt-8">
+                <label class="form-label">RAW INTEL TEXT</label>
+                <textarea class="form-textarea mono-text" id="f-raw" rows="4"
+                          placeholder="Paste raw intel channel text, dscan output, or killmail links…"></textarea>
+            </div>
+
+            <div class="form-section-title mt-16">TAGS</div>
+            <div class="tag-selector mt-8" id="tag-selector">
+                {% for t in all_tags %}
+                <label class="tag-toggle">
+                    <input type="checkbox" name="tags" value="{{ t.id }}" class="tag-cb">
+                    <span class="tag-chip-toggle" style="border-color:{{ t.color }};color:{{ t.color }}">
+                        {{ t.name }}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <div class="form-row mt-8">
+                <label class="form-label">EXPIRES AT</label>
+                <input class="form-input" type="datetime-local" id="f-expires"
+                       title="Leave blank for no expiry">
+            </div>
+
+            <div class="form-actions mt-16">
+                <button class="btn" type="submit">Submit Intel Report</button>
+                <button class="btn btn-ghost" type="reset" onclick="resetForm()">Clear Form</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function submitIntel() {
+    var tagIds = Array.from(document.querySelectorAll('.tag-cb:checked')).map(function(cb) {
+        return parseInt(cb.value);
+    });
+    var expires = document.getElementById('f-expires').value;
+    var payload = {
+        title:            document.getElementById('f-title').value.trim(),
+        threat_level:     document.getElementById('f-threat').value,
+        category:         document.getElementById('f-category').value,
+        system_name:      document.getElementById('f-system').value.trim() || null,
+        region_name:      document.getElementById('f-region').value.trim() || null,
+        reporter_name:    document.getElementById('f-reporter').value.trim(),
+        character_name:   document.getElementById('f-character').value.trim() || null,
+        corporation_name: document.getElementById('f-corp').value.trim() || null,
+        alliance_name:    document.getElementById('f-alliance').value.trim() || null,
+        ship_type:        document.getElementById('f-ship').value.trim() || null,
+        pilot_count:      document.getElementById('f-pilots').value || null,
+        description:      document.getElementById('f-description').value.trim() || null,
+        raw_text:         document.getElementById('f-raw').value.trim() || null,
+        expires_at:       expires ? new Date(expires).toISOString() : null,
+        tag_ids:          tagIds,
+    };
+    if (!payload.title) { eaibToast('Title is required.','error'); return false; }
+    if (!payload.reporter_name) { eaibToast('Reporter name is required.','error'); return false; }
+
+    fetch('/api/intel/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { eaibToast('Error: ' + data.error, 'error'); return; }
+        eaibToast('Intel report submitted! ID #' + data.id, 'success');
+        loadPanel('/intel/' + data.id + '/');
+    })
+    .catch(function(err) { eaibToast('Submit failed: ' + err.message, 'error'); });
+    return false;
+}
+
+function resetForm() {
+    document.getElementById('submit-form').reset();
+    document.querySelectorAll('.tag-cb').forEach(function(cb) { cb.checked = false; });
+}
+</script>

@@ -1,0 +1,155 @@
+<div class="page-header">
+    <span class="page-title">Intel Feed</span>
+    <span class="page-sub">{{ total }} report{{ 's' if total != 1 else '' }}</span>
+    <a class="btn-sm" onclick="loadPanel('/intel/submit/')">+ Submit</a>
+</div>
+
+<!-- ── Filters ── -->
+<form class="filter-bar" id="filter-form" onsubmit="return applyFilters()">
+    <div class="filter-group">
+        <label class="filter-label">THREAT</label>
+        <select class="filter-select" name="threat" id="f-threat">
+            <option value="">All</option>
+            <option value="critical" {% if threat=='critical' %}selected{% endif %}>Critical</option>
+            <option value="high"     {% if threat=='high' %}selected{% endif %}>High</option>
+            <option value="medium"   {% if threat=='medium' %}selected{% endif %}>Medium</option>
+            <option value="low"      {% if threat=='low' %}selected{% endif %}>Low</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">CATEGORY</label>
+        <select class="filter-select" name="category" id="f-category">
+            <option value="">All</option>
+            <option value="fleet"     {% if category=='fleet' %}selected{% endif %}>Fleet</option>
+            <option value="pos"       {% if category=='pos' %}selected{% endif %}>POS</option>
+            <option value="structure" {% if category=='structure' %}selected{% endif %}>Structure</option>
+            <option value="gank"      {% if category=='gank' %}selected{% endif %}>Gank</option>
+            <option value="camp"      {% if category=='camp' %}selected{% endif %}>Camp</option>
+            <option value="cyno"      {% if category=='cyno' %}selected{% endif %}>Cyno</option>
+            <option value="spy"       {% if category=='spy' %}selected{% endif %}>Spy</option>
+            <option value="war"       {% if category=='war' %}selected{% endif %}>War</option>
+            <option value="other"     {% if category=='other' %}selected{% endif %}>Other</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">STATUS</label>
+        <select class="filter-select" name="status" id="f-status">
+            <option value="">All</option>
+            <option value="active"         {% if status_filter=='active' %}selected{% endif %}>Active</option>
+            <option value="resolved"       {% if status_filter=='resolved' %}selected{% endif %}>Resolved</option>
+            <option value="expired"        {% if status_filter=='expired' %}selected{% endif %}>Expired</option>
+            <option value="false_positive" {% if status_filter=='false_positive' %}selected{% endif %}>False Positive</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">SYSTEM</label>
+        <input class="filter-input" type="text" name="system" id="f-system"
+               value="{{ system }}" placeholder="System name…">
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">REGION</label>
+        <input class="filter-input" type="text" name="region" id="f-region"
+               value="{{ region }}" placeholder="Region name…">
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">TAG</label>
+        <select class="filter-select" name="tag" id="f-tag">
+            <option value="">All</option>
+            {% for t in all_tags %}
+            <option value="{{ t.id }}" {% if tag_id|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button class="btn-sm" type="submit">Filter</button>
+    <button class="btn-sm btn-ghost" type="button" onclick="clearFilters()">Clear</button>
+</form>
+
+<!-- ── Data grid ── -->
+{% if reports %}
+<table class="data-grid mt-16">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>THREAT</th>
+            <th>TITLE</th>
+            <th>SYSTEM</th>
+            <th>REGION</th>
+            <th>CATEGORY</th>
+            <th>REPORTER</th>
+            <th>SHIP</th>
+            <th>PILOTS</th>
+            <th>STATUS</th>
+            <th>COMMENTS</th>
+            <th>SUBMITTED</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in reports %}
+        <tr class="row-status-{{ r.status }}">
+            <td class="mono dim">#{{ r.id }}</td>
+            <td>
+                <span class="threat-badge threat-{{ r.threat_level }}">{{ r.threat_level | upper }}</span>
+            </td>
+            <td>
+                <a class="link-teal" onclick="loadPanel('/intel/{{ r.id }}/')">
+                    {{ r.title | truncate(48, True) }}
+                </a>
+            </td>
+            <td class="mono">{{ r.system_name or '—' }}</td>
+            <td class="dim">{{ r.region_name or '—' }}</td>
+            <td class="mono dim">{{ r.category }}</td>
+            <td class="dim">{{ r.reporter_name | truncate(18, True) }}</td>
+            <td class="dim">{{ r.ship_type or '—' }}</td>
+            <td class="mono right">{{ r.pilot_count if r.pilot_count else '—' }}</td>
+            <td>
+                <span class="status-badge status-{{ r.status }}">{{ r.status | replace('_', ' ') | upper }}</span>
+            </td>
+            <td class="mono right dim">{{ r.comment_count }}</td>
+            <td class="mono dim small">{{ r.created_at.strftime('%m/%d %H:%M') if r.created_at else '—' }}</td>
+            <td>
+                <a class="icon-link" onclick="loadPanel('/intel/{{ r.id }}/.')">&#x2192;</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- ── Pagination ── -->
+{% if total_pages > 1 %}
+<div class="pagination mt-16">
+    {% if page > 1 %}
+    <a class="page-btn" onclick="goPage({{ page - 1 }})">&#8592; Prev</a>
+    {% endif %}
+    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a class="page-btn" onclick="goPage({{ page + 1 }})">Next &#8594;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<p class="empty-state mt-16">No intel reports match the current filters.</p>
+{% endif %}
+
+<script>
+function applyFilters() {
+    var params = new URLSearchParams();
+    ['threat','category','status','system','region','tag'].forEach(function(k) {
+        var el = document.getElementById('f-' + k);
+        if (el && el.value) params.set(k === 'tag' ? 'tag' : k, el.value);
+    });
+    loadPanel('/intel/?' + params.toString());
+    return false;
+}
+
+function clearFilters() {
+    loadPanel('/intel/?status=active');
+}
+
+function goPage(n) {
+    var params = new URLSearchParams(window.location.search);
+    params.set('page', n);
+    loadPanel('/intel/?' + params.toString());
+}
+</script>

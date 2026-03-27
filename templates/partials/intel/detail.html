@@ -1,0 +1,298 @@
+<div class="page-header">
+    <span class="page-title">Intel Detail</span>
+    <span class="page-sub">#{{ report.id }}</span>
+    <a class="btn-sm btn-ghost" onclick="loadPanel('/intel/')">&#x2190; Feed</a>
+</div>
+
+<div class="detail-grid">
+
+    <!-- ── Left: report card ── -->
+    <div class="detail-main">
+
+        <!-- Header card -->
+        <div class="panel">
+            <div class="report-card-header">
+                <div class="report-title-row">
+                    <span class="threat-badge threat-{{ report.threat_level }} threat-lg">
+                        {{ report.threat_level | upper }}
+                    </span>
+                    <h2 class="report-title">{{ report.title }}</h2>
+                </div>
+                <div class="report-meta-row">
+                    <span class="status-badge status-{{ report.status }}">{{ report.status | replace('_', ' ') | upper }}</span>
+                    <span class="meta-tag">{{ report.category | upper }}</span>
+                    {% if report.system_name %}
+                    <span class="meta-tag">
+                        <a class="link-teal" onclick="loadPanel('/intel/?system={{ report.system_name }}&status=active')">
+                            {{ report.system_name }}
+                        </a>
+                    </span>
+                    {% endif %}
+                    {% if report.region_name %}
+                    <span class="meta-tag dim">{{ report.region_name }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Details grid -->
+            <div class="detail-fields">
+                <div class="field-row">
+                    <span class="field-label">REPORTER</span>
+                    <span class="field-value">{{ report.reporter_name }}</span>
+                </div>
+                {% if report.character_name %}
+                <div class="field-row">
+                    <span class="field-label">CHARACTER</span>
+                    <span class="field-value">{{ report.character_name }}</span>
+                </div>
+                {% endif %}
+                {% if report.corporation_name %}
+                <div class="field-row">
+                    <span class="field-label">CORPORATION</span>
+                    <span class="field-value">{{ report.corporation_name }}</span>
+                </div>
+                {% endif %}
+                {% if report.alliance_name %}
+                <div class="field-row">
+                    <span class="field-label">ALLIANCE</span>
+                    <span class="field-value">{{ report.alliance_name }}</span>
+                </div>
+                {% endif %}
+                {% if report.ship_type %}
+                <div class="field-row">
+                    <span class="field-label">SHIP TYPE</span>
+                    <span class="field-value mono">{{ report.ship_type }}</span>
+                </div>
+                {% endif %}
+                {% if report.pilot_count %}
+                <div class="field-row">
+                    <span class="field-label">PILOT COUNT</span>
+                    <span class="field-value mono">{{ report.pilot_count }}</span>
+                </div>
+                {% endif %}
+                <div class="field-row">
+                    <span class="field-label">SUBMITTED</span>
+                    <span class="field-value mono">
+                        {{ report.created_at.strftime('%Y-%m-%d %H:%M UTC') if report.created_at else '—' }}
+                    </span>
+                </div>
+                {% if report.updated_at and report.updated_at != report.created_at %}
+                <div class="field-row">
+                    <span class="field-label">UPDATED</span>
+                    <span class="field-value mono">
+                        {{ report.updated_at.strftime('%Y-%m-%d %H:%M UTC') if report.updated_at else '—' }}
+                    </span>
+                </div>
+                {% endif %}
+                {% if report.expires_at %}
+                <div class="field-row">
+                    <span class="field-label">EXPIRES</span>
+                    <span class="field-value mono amber">
+                        {{ report.expires_at.strftime('%Y-%m-%d %H:%M UTC') if report.expires_at else '—' }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if report.description %}
+            <div class="report-description">
+                <div class="field-label mb-6">DESCRIPTION</div>
+                <div class="desc-text">{{ report.description }}</div>
+            </div>
+            {% endif %}
+
+            {% if report.raw_text %}
+            <div class="report-description mt-12">
+                <div class="field-label mb-6">RAW INTEL</div>
+                <pre class="raw-text">{{ report.raw_text }}</pre>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tags -->
+        <div class="panel mt-12">
+            <div class="panel-header">
+                <span>TAGS</span>
+                <button class="btn-sm" onclick="showTagAdd()">+ Add Tag</button>
+            </div>
+            <div class="tag-list" id="tag-list">
+                {% if tags %}
+                {% for t in tags %}
+                <span class="tag-chip" style="border-color:{{ t.color }}">
+                    <span style="color:{{ t.color }}">{{ t.name }}</span>
+                    <button class="tag-remove" onclick="removeTag({{ report.id }}, {{ t.id }})" title="Remove">&times;</button>
+                </span>
+                {% endfor %}
+                {% else %}
+                <span class="dim small">No tags assigned.</span>
+                {% endif %}
+            </div>
+            <div id="tag-add-form" hidden class="tag-add-row mt-8">
+                <select class="filter-select" id="tag-add-select">
+                    <option value="">Select tag…</option>
+                    {% for t in all_tags %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn-sm" onclick="addTag({{ report.id }})">Add</button>
+                <button class="btn-sm btn-ghost" onclick="hideTagAdd()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="panel mt-12">
+            <div class="panel-header"><span>COMMENTS ({{ comments | length }})</span></div>
+            {% if comments %}
+            <div class="comment-list">
+                {% for c in comments %}
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <span class="comment-author">{{ c.author_name }}</span>
+                        <span class="comment-time mono dim">{{ c.created_at.strftime('%Y-%m-%d %H:%M UTC') if c.created_at else '' }}</span>
+                    </div>
+                    <div class="comment-body">{{ c.body }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">No comments yet.</p>
+            {% endif %}
+
+            <!-- Add comment form -->
+            <div class="comment-form mt-12">
+                <div class="form-row">
+                    <label class="form-label">YOUR NAME</label>
+                    <input class="form-input" type="text" id="comment-author" placeholder="Your character name…">
+                </div>
+                <div class="form-row mt-8">
+                    <label class="form-label">COMMENT</label>
+                    <textarea class="form-textarea" id="comment-body" rows="3" placeholder="Add intel update or note…"></textarea>
+                </div>
+                <button class="btn mt-8" onclick="submitComment({{ report.id }})">Post Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right: actions + related ── -->
+    <div class="detail-side">
+
+        <!-- Actions -->
+        <div class="panel">
+            <div class="panel-header"><span>ACTIONS</span></div>
+            <div class="action-stack">
+                {% if report.status == 'active' %}
+                <button class="btn btn-success" onclick="resolveReport({{ report.id }})">&#x2713; Mark Resolved</button>
+                <button class="btn btn-warn"    onclick="expireReport({{ report.id }})">&#x23F3; Mark Expired</button>
+                <button class="btn btn-ghost"   onclick="falsePositive({{ report.id }})">&#x2715; False Positive</button>
+                {% else %}
+                <button class="btn"             onclick="reopenReport({{ report.id }})">&#x21BA; Reopen</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Related intel -->
+        <div class="panel mt-12">
+            <div class="panel-header"><span>RELATED INTEL</span></div>
+            {% if related %}
+            <table class="data-grid">
+                <thead>
+                    <tr><th>THREAT</th><th>TITLE</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for rel in related %}
+                    <tr>
+                        <td>
+                            <span class="threat-badge threat-{{ rel.threat_level }}">{{ rel.threat_level | upper }}</span>
+                        </td>
+                        <td>
+                            <a class="link-teal" onclick="loadPanel('/intel/{{ rel.id }}/')">
+                                {{ rel.title | truncate(32, True) }}
+                            </a>
+                        </td>
+                        <td>
+                            <a class="icon-link" onclick="loadPanel('/intel/{{ rel.id }}/')">&#x2192;</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No related reports.</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick info -->
+        <div class="panel mt-12">
+            <div class="panel-header"><span>QUICK FILTERS</span></div>
+            <div class="quick-links">
+                {% if report.system_name %}
+                <a class="quick-link" onclick="loadPanel('/intel/?system={{ report.system_name }}&status=active')">
+                    All intel in {{ report.system_name }}
+                </a>
+                {% endif %}
+                {% if report.region_name %}
+                <a class="quick-link" onclick="loadPanel('/intel/?region={{ report.region_name }}&status=active')">
+                    All intel in {{ report.region_name }}
+                </a>
+                {% endif %}
+                <a class="quick-link" onclick="loadPanel('/intel/?category={{ report.category }}&status=active')">
+                    All {{ report.category }} intel
+                </a>
+                <a class="quick-link" onclick="loadPanel('/intel/?threat={{ report.threat_level }}&status=active')">
+                    All {{ report.threat_level }} threats
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resolveReport(id) {
+    fetch('/api/intel/' + id + '/resolve/', {method:'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function() { eaibToast('Report resolved.','success'); loadPanel('/intel/' + id + '/'); });
+}
+function expireReport(id) {
+    fetch('/api/intel/' + id + '/expire/', {method:'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function() { eaibToast('Report expired.','warn'); loadPanel('/intel/' + id + '/'); });
+}
+function falsePositive(id) {
+    fetch('/api/intel/' + id + '/false-positive/', {method:'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function() { eaibToast('Marked as false positive.','info'); loadPanel('/intel/' + id + '/'); });
+}
+function reopenReport(id) {
+    fetch('/api/intel/' + id + '/', {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status:'active'})
+    }).then(function() { eaibToast('Report reopened.','success'); loadPanel('/intel/' + id + '/'); });
+}
+function showTagAdd() { document.getElementById('tag-add-form').hidden = false; }
+function hideTagAdd() { document.getElementById('tag-add-form').hidden = true; }
+function addTag(reportId) {
+    var sel = document.getElementById('tag-add-select');
+    var tid = sel.value;
+    if (!tid) return;
+    fetch('/api/intel/' + reportId + '/tags/', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({tag_id: parseInt(tid)})
+    }).then(function() { loadPanel('/intel/' + reportId + '/'); });
+}
+function removeTag(reportId, tagId) {
+    fetch('/api/intel/' + reportId + '/tags/' + tagId + '/', {method:'DELETE'})
+        .then(function() { loadPanel('/intel/' + reportId + '/'); });
+}
+function submitComment(reportId) {
+    var author = document.getElementById('comment-author').value.trim();
+    var body = document.getElementById('comment-body').value.trim();
+    if (!author || !body) { eaibToast('Author and comment are required.','error'); return; }
+    fetch('/api/intel/' + reportId + '/comments/', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({author_name: author, body: body})
+    }).then(function() { loadPanel('/intel/' + reportId + '/'); });
+}
+</script>

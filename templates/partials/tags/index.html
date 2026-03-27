@@ -1,0 +1,103 @@
+<div class="page-header">
+    <span class="page-title">Tags</span>
+    <span class="page-sub">{{ tags | length }} tag{{ 's' if tags | length != 1 else '' }}</span>
+    <button class="btn-sm" onclick="showCreateTag()">+ New Tag</button>
+</div>
+
+<!-- Create tag form -->
+<div id="create-tag-panel" hidden class="panel mb-16">
+    <div class="panel-header"><span>NEW TAG</span></div>
+    <div class="form-grid-3">
+        <div class="form-row">
+            <label class="form-label">NAME</label>
+            <input class="form-input" type="text" id="new-tag-name" placeholder="Tag name…">
+        </div>
+        <div class="form-row">
+            <label class="form-label">COLOR</label>
+            <div class="color-row">
+                <input class="form-input color-input" type="text" id="new-tag-color" value="#00d4aa" placeholder="#hex">
+                <input type="color" id="new-tag-color-picker" value="#00d4aa" title="Pick color"
+                       oninput="document.getElementById('new-tag-color').value=this.value">
+            </div>
+        </div>
+        <div class="form-row">
+            <label class="form-label">DESCRIPTION</label>
+            <input class="form-input" type="text" id="new-tag-desc" placeholder="Optional description…">
+        </div>
+    </div>
+    <div class="form-actions mt-12">
+        <button class="btn" onclick="createTag()">Create Tag</button>
+        <button class="btn btn-ghost" onclick="hideCreateTag()">Cancel</button>
+    </div>
+</div>
+
+{% if tags %}
+<table class="data-grid">
+    <thead>
+        <tr>
+            <th>NAME</th>
+            <th>COLOR</th>
+            <th>DESCRIPTION</th>
+            <th>REPORTS</th>
+            <th>CREATED</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in tags %}
+        <tr>
+            <td>
+                <span class="tag-chip" style="border-color:{{ t.color }}">
+                    <span style="color:{{ t.color }}">{{ t.name }}</span>
+                </span>
+            </td>
+            <td class="mono dim">{{ t.color }}</td>
+            <td class="dim">{{ t.description or '—' }}</td>
+            <td class="mono right">
+                <a class="link-teal" onclick="loadPanel('/intel/?tag={{ t.id }}&status=active')">
+                    {{ t.report_count }}
+                </a>
+            </td>
+            <td class="mono dim small">{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}</td>
+            <td>
+                <button class="icon-link" style="color:var(--red)"
+                        onclick="deleteTag({{ t.id }}, '{{ t.name }}')">&#x2715;</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No tags yet. <a class="link-teal" onclick="showCreateTag()">Create your first tag.</a></p>
+{% endif %}
+
+<script>
+function showCreateTag() {
+    document.getElementById('create-tag-panel').hidden = false;
+    document.getElementById('new-tag-name').focus();
+}
+function hideCreateTag() {
+    document.getElementById('create-tag-panel').hidden = true;
+}
+function createTag() {
+    var name  = document.getElementById('new-tag-name').value.trim();
+    var color = document.getElementById('new-tag-color').value.trim() || '#00d4aa';
+    var desc  = document.getElementById('new-tag-desc').value.trim() || null;
+    if (!name) { eaibToast('Tag name is required.','error'); return; }
+    fetch('/api/tags/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name, color: color, description: desc})
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+          if (data.error) { eaibToast('Error: ' + data.error, 'error'); return; }
+          eaibToast('Tag created.', 'success');
+          loadPanel('/tags/');
+      });
+}
+function deleteTag(id, name) {
+    if (!confirm('Delete tag "' + name + '"? This will remove it from all reports.')) return;
+    fetch('/api/tags/' + id + '/', {method: 'DELETE'})
+        .then(function() { eaibToast('Tag deleted.', 'warn'); loadPanel('/tags/'); });
+}
+</script>
